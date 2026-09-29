@@ -34,7 +34,8 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - ver: 9.0
+          # quoted, YAML would read 9.0 as the number 9
+          - ver: '9.0'
     steps:
       - uses: actions/checkout@v6
       - if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'

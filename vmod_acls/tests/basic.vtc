@@ -60,7 +60,7 @@ client c1 {
     expect resp.http.allowed == "false"
     expect resp.http.denied == "false"
 
-    # Varnish converts IPv4-mapped IPv6 addresses to IPv4 before the vmod sees them
+    # IPv4-mapped IPv6 addresses are looked up as IPv4
     txreq -hdr "ip: ::ffff:10.0.0.1"
     rxresp
     expect resp.http.denied == "true"

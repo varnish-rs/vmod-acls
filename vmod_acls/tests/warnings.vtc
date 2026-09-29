@@ -8,6 +8,7 @@ logexpect l1 -v v1 -g raw -q "Error or Notice" {
     expect * 0 Error  {^a\.add\("127\.0\.0\.1/24"\): address has host bits set, using 127\.0\.0\.0/24$}
     expect * 0 Error  {^a\.add\("!127\.0\.0\.0/25"\): never matches, earlier rules with the opposite action cover all of 127\.0\.0\.0/25$}
     expect * 0 Notice {^a\.add\("127\.0\.0\.128/25"\): redundant, earlier rules already match all of 127\.0\.0\.128/25 the same way$}
+    expect * 0 Error  {^a\.add\("::ffff:10\.0\.0\.0/104"\): never matches, IPv4-mapped addresses are looked up as IPv4, use 10\.0\.0\.0/8 instead$}
 } -start
 
 varnish v1 -vcl+backend {
@@ -18,6 +19,8 @@ varnish v1 -vcl+backend {
         a.add("!127.0.0.0/25");
         a.add("127.0.0.128/25");
         a.add("!10.0.0.0/8");
+        a.add("::ffff:10.0.0.0/104");
+        a.add("::/0");
     }
 }
 

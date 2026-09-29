@@ -22,7 +22,8 @@ pub struct IpAcl {
 
 impl IpAcl {
     fn lookup(&self, ip: Option<SocketAddr>) -> Option<Action> {
-        self.acl.read().unwrap().lookup(ip?.ip())
+        // Whether libc turns `::ffff:a.b.c.d` into IPv4 depends on the platform, so do it here.
+        self.acl.read().unwrap().lookup(ip?.ip().to_canonical())
     }
 }
 
@@ -49,14 +50,15 @@ impl IpAcl {
 /// }
 /// ```
 ///
-/// IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. Note that Varnish
-/// converts IPv4-mapped IPv6 addresses such as `::ffff:10.0.0.1` to IPv4 (`10.0.0.1`), so those
-/// match IPv4 rules, as they do with native VCL ACLs.
+/// IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. IPv4-mapped IPv6
+/// addresses such as `::ffff:10.0.0.1` are looked up as IPv4 (`10.0.0.1`), so they match IPv4
+/// rules, and IPv6 rules inside `::ffff:0:0/96` never match.
 #[varnish::vmod(docs = "API.md")]
 mod acls {
     use std::net::SocketAddr;
     use std::sync::RwLock;
 
+    use ip_acl::ipnet::{IpNet, Ipv4Net};
     use ip_acl::{Acl, Action, Coverage};
     use varnish::vcl::{Ctx, LogTag, VclError};
 
@@ -84,7 +86,9 @@ mod acls {
         /// - `Error` if earlier rules with the opposite action cover the whole rule, so it can
         ///   never take effect,
         /// - `Notice` if earlier rules with the same action cover the whole rule, making it
-        ///   redundant.
+        ///   redundant,
+        /// - `Error` if the rule is inside `::ffff:0:0/96`: IPv4-mapped addresses are looked up
+        ///   as IPv4, so it never matches. Write the IPv4 rule instead.
         #[restrict(vcl_init)]
         pub fn add(&self, ctx: &mut Ctx, rule: &str) -> Result<(), VclError> {
             let name = &self.name;
@@ -100,6 +104,13 @@ mod acls {
                     LogTag::Error,
                     format!("{name}.add(\"{rule}\"): address has host bits set, using {net}"),
                 );
+            }
+            if let IpNet::V6(v6) = net
+                && v6.prefix_len() >= 96
+                && let Some(v4) = v6.network().to_ipv4_mapped()
+            {
+                let v4 = Ipv4Net::new_assert(v4, v6.prefix_len() - 96);
+                ctx.log(LogTag::Error, format!("{name}.add(\"{rule}\"): never matches, IPv4-mapped addresses are looked up as IPv4, use {v4} instead"));
             }
             match coverage {
                 Coverage::Effective => {}

@@ -31,9 +31,9 @@ return (synth(403));
 }
 ```
 
-IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. Note that Varnish
-converts IPv4-mapped IPv6 addresses such as `::ffff:10.0.0.1` to IPv4 (`10.0.0.1`), so those
-match IPv4 rules, as they do with native VCL ACLs.
+IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. IPv4-mapped IPv6
+addresses such as `::ffff:10.0.0.1` are looked up as IPv4 (`10.0.0.1`), so they match IPv4
+rules, and IPv6 rules inside `::ffff:0:0/96` never match.
 
 ```vcl
 // Place import statement at the top of your VCL file
@@ -67,7 +67,9 @@ the load (`varnishlog -g raw`):
 - `Error` if earlier rules with the opposite action cover the whole rule, so it can
 never take effect,
 - `Notice` if earlier rules with the same action cover the whole rule, making it
-redundant.
+redundant,
+- `Error` if the rule is inside `::ffff:0:0/96`: IPv4-mapped addresses are looked up
+as IPv4, so it never matches. Write the IPv4 rule instead.
 
 ### Method `BOOL <object>.found([IP ip])`
 

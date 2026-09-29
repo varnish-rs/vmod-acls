@@ -100,8 +100,9 @@ An invalid rule fails the VCL load. Some valid but suspicious rules are logged w
 - **host bits set**: `10.0.0.1/8` is treated as `10.0.0.0/8` (`Error`)
 - **never matches**: earlier rules with the opposite action cover the whole rule (`Error`)
 - **redundant**: earlier rules with the same action cover the whole rule (`Notice`)
+- **IPv4-mapped**: the rule is inside `::ffff:0:0/96`, see below (`Error`)
 
-IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. Note that Varnish converts IPv4-mapped IPv6 addresses such as `::ffff:10.0.0.1` to IPv4, so those match IPv4 rules, as they do with native ACLs.
+IPv4 rules only match IPv4 addresses, and IPv6 rules only IPv6 addresses. IPv4-mapped IPv6 addresses such as `::ffff:10.0.0.1` are looked up as IPv4 (`10.0.0.1`) on every platform, so they match IPv4 rules. IPv6 rules inside `::ffff:0:0/96` can't match anything and are reported at load time.
 
 ## Requirements
 

@@ -106,7 +106,7 @@ get-varnish-version $required_version='':
 # Run all unit and integration tests. Builds first: the VTC tests load the vmod's .so file.
 test *args: build
     cargo test {{packages}} {{features}} {{targets}} {{args}}
-    cargo test {{packages}} {{features}} --doc {{args}}
+    cargo test -p ip-acl {{features}} --doc {{args}}
 
 # Test documentation generation
 test-doc:  (docs '')
