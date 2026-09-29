@@ -1,0 +1,20 @@
+[package]
+name = "vmod_acls"
+version = "0.1.0"
+description = "Varnish VMOD for ordered, first-match-wins IP/CIDR access control lists"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ip-acl = { path = "../ip-acl", version = "0.1.0" }
+varnish = "0.8"
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true

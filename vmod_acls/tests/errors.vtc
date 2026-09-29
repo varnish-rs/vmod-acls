@@ -1,0 +1,43 @@
+varnishtest "invalid rules and misplaced add() fail the VCL load"
+
+server s1 {} -start
+
+varnish v1 -vcl+backend {} -start
+
+varnish v1 -errvcl {a.add(): invalid rule '10.0.0.0/33'} {
+    import acls from "${vmod}";
+    backend be none;
+    sub vcl_init {
+        new a = acls.ip_acl();
+        a.add("10.0.0.0/33");
+    }
+}
+
+varnish v1 -errvcl {a.add(): invalid rule 'not-an-ip'} {
+    import acls from "${vmod}";
+    backend be none;
+    sub vcl_init {
+        new a = acls.ip_acl();
+        a.add("not-an-ip");
+    }
+}
+
+varnish v1 -errvcl {a.add(): invalid rule ''} {
+    import acls from "${vmod}";
+    backend be none;
+    sub vcl_init {
+        new a = acls.ip_acl();
+        a.add("");
+    }
+}
+
+varnish v1 -errvcl {Not available in subroutine 'vcl_recv'} {
+    import acls from "${vmod}";
+    backend be none;
+    sub vcl_init {
+        new a = acls.ip_acl();
+    }
+    sub vcl_recv {
+        a.add("10.0.0.0/8");
+    }
+}

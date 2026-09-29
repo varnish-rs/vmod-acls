@@ -1,0 +1,39 @@
+varnishtest "lookups in vcl_init see the rules added so far"
+
+server s1 {} -start
+
+varnish v1 -vcl+backend {
+    import acls from "${vmod}";
+    import std;
+
+    sub vcl_init {
+        new a = acls.ip_acl();
+        if (a.found(std.ip("10.1.2.3", "0.0.0.0"))) {
+            return (fail("empty ACL matched"));
+        }
+        a.add("!10.0.0.0/8");
+        if (!a.denied(std.ip("10.1.2.3", "0.0.0.0"))) {
+            return (fail("10.1.2.3 not denied"));
+        }
+        a.add("0.0.0.0/0");
+        if (!a.allowed(std.ip("192.0.2.1", "0.0.0.0"))) {
+            return (fail("192.0.2.1 not allowed"));
+        }
+    }
+
+    sub vcl_recv {
+        return (synth(200));
+    }
+
+    sub vcl_synth {
+        set resp.http.denied = a.denied(std.ip("10.1.2.3", "0.0.0.0"));
+        set resp.http.allowed = a.allowed(std.ip("192.0.2.1", "0.0.0.0"));
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.denied == "true"
+    expect resp.http.allowed == "true"
+} -run

@@ -1,0 +1,24 @@
+varnishtest "suspicious rules are logged at load time"
+
+server s1 {} -start
+
+varnish v1 -vcl+backend {} -start
+
+logexpect l1 -v v1 -g raw -q "Error or Notice" {
+    expect * 0 Error  {^a\.add\("127\.0\.0\.1/24"\): address has host bits set, using 127\.0\.0\.0/24$}
+    expect * 0 Error  {^a\.add\("!127\.0\.0\.0/25"\): never matches, earlier rules with the opposite action cover all of 127\.0\.0\.0/25$}
+    expect * 0 Notice {^a\.add\("127\.0\.0\.128/25"\): redundant, earlier rules already match all of 127\.0\.0\.128/25 the same way$}
+} -start
+
+varnish v1 -vcl+backend {
+    import acls from "${vmod}";
+    sub vcl_init {
+        new a = acls.ip_acl();
+        a.add("127.0.0.1/24");
+        a.add("!127.0.0.0/25");
+        a.add("127.0.0.128/25");
+        a.add("!10.0.0.0/8");
+    }
+}
+
+logexpect l1 -wait

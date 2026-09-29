@@ -1,0 +1,67 @@
+varnishtest "found/allowed/denied, first match wins"
+
+server s1 {} -start
+
+varnish v1 -vcl+backend {
+    import acls from "${vmod}";
+    import std;
+
+    sub vcl_init {
+        new a = acls.ip_acl();
+        a.add("::1");
+        a.add("!10.0.0.0/8");
+        a.add("10.1.0.0/16");
+        a.add("127.0.0.0/24");
+        a.add("!2001:db8::/32");
+    }
+
+    sub vcl_recv {
+        return (synth(200));
+    }
+
+    sub vcl_synth {
+        if (req.http.ip) {
+            set resp.http.found = a.found(std.ip(req.http.ip, "0.0.0.0"));
+            set resp.http.allowed = a.allowed(std.ip(req.http.ip, "0.0.0.0"));
+            set resp.http.denied = a.denied(std.ip(req.http.ip, "0.0.0.0"));
+        } else {
+            set resp.http.allowed = a.allowed(client.ip);
+        }
+    }
+} -start
+
+client c1 {
+    # client.ip is 127.0.0.1
+    txreq
+    rxresp
+    expect resp.http.allowed == "true"
+
+    txreq -hdr "ip: ::1"
+    rxresp
+    expect resp.http.found == "true"
+    expect resp.http.allowed == "true"
+    expect resp.http.denied == "false"
+
+    # !10.0.0.0/8 comes first, so 10.1.0.0/16 never matches
+    txreq -hdr "ip: 10.1.2.3"
+    rxresp
+    expect resp.http.found == "true"
+    expect resp.http.allowed == "false"
+    expect resp.http.denied == "true"
+
+    txreq -hdr "ip: 2001:db8::42"
+    rxresp
+    expect resp.http.denied == "true"
+
+    # no match
+    txreq -hdr "ip: 192.0.2.1"
+    rxresp
+    expect resp.http.found == "false"
+    expect resp.http.allowed == "false"
+    expect resp.http.denied == "false"
+
+    # Varnish converts IPv4-mapped IPv6 addresses to IPv4 before the vmod sees them
+    txreq -hdr "ip: ::ffff:10.0.0.1"
+    rxresp
+    expect resp.http.denied == "true"
+} -run

@@ -1,0 +1,26 @@
+[package]
+name = "ip-acl"
+version = "0.1.0"
+description = "Ordered, first-match-wins IP/CIDR access control lists"
+keywords = ["acl", "cidr", "ip", "firewall", "network"]
+categories = ["network-programming"]
+readme = "README.md"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ipnet = "2.12"
+
+[dev-dependencies]
+criterion = "0.8"
+proptest = "1"
+
+[[bench]]
+name = "acl"
+harness = false
+
+[lints]
+workspace = true

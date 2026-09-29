@@ -1,0 +1,52 @@
+varnishtest "rule order decides"
+
+server s1 {} -start
+
+varnish v1 -vcl+backend {
+    import acls from "${vmod}";
+    import std;
+
+    sub vcl_init {
+        new allow_all = acls.ip_acl();
+        allow_all.add("0.0.0.0/0");
+        allow_all.add("!0.0.0.0/0");
+
+        new deny_all = acls.ip_acl();
+        deny_all.add("!0.0.0.0/0");
+        deny_all.add("0.0.0.0/0");
+
+        new exception = acls.ip_acl();
+        exception.add("10.1.0.0/16");
+        exception.add("!10.0.0.0/8");
+
+        new empty = acls.ip_acl();
+    }
+
+    sub vcl_recv {
+        return (synth(200));
+    }
+
+    sub vcl_synth {
+        set resp.http.allow_all = allow_all.allowed(std.ip(req.http.ip, "0.0.0.0"));
+        set resp.http.deny_all = deny_all.denied(std.ip(req.http.ip, "0.0.0.0"));
+        set resp.http.exception = exception.allowed(std.ip(req.http.ip, "0.0.0.0"));
+        set resp.http.empty = empty.found(std.ip(req.http.ip, "0.0.0.0"));
+    }
+} -start
+
+client c1 {
+    txreq -hdr "ip: 203.0.113.7"
+    rxresp
+    expect resp.http.allow_all == "true"
+    expect resp.http.deny_all == "true"
+    expect resp.http.exception == "false"
+    expect resp.http.empty == "false"
+
+    txreq -hdr "ip: 10.1.255.255"
+    rxresp
+    expect resp.http.exception == "true"
+
+    txreq -hdr "ip: 10.2.0.0"
+    rxresp
+    expect resp.http.exception == "false"
+} -run

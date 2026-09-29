@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2b711bfab313d205910318a0866bbd2105d6ddbb30bd2896c827ab24b7287bc9 # shrinks to rules = [Rule { action: Allow, cidr: Cidr { addr: 0.0.0.0, prefix_len: 0 } }, Rule { action: Deny, cidr: Cidr { addr: 0.0.0.0, prefix_len: 0 } }]
